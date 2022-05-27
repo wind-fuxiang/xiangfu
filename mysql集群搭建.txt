@@ -1,0 +1,93 @@
+MySQL集群搭建（Ubuntu）
+
+
+首先在Ubuntu服务器上创建以下节点
+    192.168.31.30   管理节点
+    192.168.31.31   数据节点1
+    192.168.31.32   数据节点2
+    192.168.31.33   SQL节点
+
+下载MySQL集群压缩包
+    https://dev.mysql.com/downloads/cluster/
+解压
+    tar -xzvf mysql-cluster-8.0.29-linux-glibc2.12-x86_64.tar.gz
+
+解压后的文件名替换为mysql方便后续管理
+
+将mysql目录中集群管理命令复制到 '/usr/local/bin'目录
+    cp bin/ndb_mgm* /usr/local/bin
+
+使用chmod命令使其能够执行
+    chmod +x /usr/local/bin/ndb_mgm*
+
+
+
+配置集群管理节点
+在'/var/lib/'目录中创建新目录'mysql-cluster'并创建文件'config.ini'
+文件内容如下
+    [ndbd default]
+    NoOfReplicas=2
+    DataMemory=80M
+    IndexMemory=18M
+    [mysqld default]
+    [ndb_mgmd default]
+    [tcp default]
+# Cluster Control / Management node
+    [ndb_mgmd]
+    hostname=192.168.1.11
+    [ndbd]
+    hostname=192.168.1.12
+    DataDir= /var/lib/mysql-cluster
+# Data Node 1
+    [ndbd]
+    HostName=192.168.1.13
+    DataDir=/var/lib/mysql-cluster
+# SQL Node
+    [mysqld]
+    hostname=192.168.1.14
+# If you to add new SQL Node
+    [mysqld]
+保存文件
+
+启动管理节点进程
+    ndb_mgmd -f /var/lib/mysql-cluster/config.ini --configdir=/var/lib/mysql-cluster/
+  出现以下提示信息
+    MySQL Cluster Management Server mysql-8.0.29 ndb-8.0.29
+
+检查管理节点
+    netstat -plntu
+  结果如下
+        激活Internet连接 (仅服务器)
+	Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+	tcp        0      0 127.0.0.1:33060         0.0.0.0:*               LISTEN      1121/mysqld         
+	tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN      1121/mysqld         
+	tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN      656/systemd-resolve 
+	tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      866/sshd: /usr/sbin 
+	tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN      703/cupsd           
+	tcp6       0      0 :::1186                 :::*                    LISTEN      2600/ndb_mgmd       
+	tcp6       0      0 :::22                   :::*                    LISTEN      866/sshd: /usr/sbin 
+	tcp6       0      0 ::1:631                 :::*                    LISTEN      703/cupsd           
+	udp        0      0 127.0.0.53:53           0.0.0.0:*                           656/systemd-resolve 
+	udp        0      0 0.0.0.0:5353            0.0.0.0:*                           700/avahi-daemon: r 
+	udp        0      0 0.0.0.0:631             0.0.0.0:*                           777/cups-browsed    
+	udp        0      0 0.0.0.0:39826           0.0.0.0:*                           700/avahi-daemon: r 
+	udp6       0      0 :::5353                 :::*                                700/avahi-daemon: r 
+	udp6       0      0 :::56759                :::*                                700/avahi-daemon: r 
+  输入如下命令
+    ndb_mgm
+    >show
+  结果如下
+	Connected to Management Server at: localhost:1186
+	Cluster Configuration
+	---------------------
+	[ndbd(NDB)]	2 node(s)
+	id=2 (not connected, accepting connect from 192.168.31.31)
+	id=3 (not connected, accepting connect from 192.168.31.32)
+
+	[ndb_mgmd(MGM)]	1 node(s)
+	id=1	@192.168.31.30  (mysql-8.0.29 ndb-8.0.29)
+
+	[mysqld(API)]	2 node(s)
+	id=4 (not connected, accepting connect from 192.168.31.33)
+	id=5 (not connected, accepting connect from any host)
+    管理节点已经准备就绪
